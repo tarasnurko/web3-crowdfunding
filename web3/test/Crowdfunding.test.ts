@@ -306,8 +306,6 @@ describe("Crowdfunding", function () {
 
       const initialBalance = await campaignOwner.getBalance();
 
-      const gasPrice1 = await ethers.provider.getGasPrice();
-
       const tx1 = await crowdfunding
         .connect(donator1)
         .donateCampaign(campaignId, {
@@ -315,9 +313,7 @@ describe("Crowdfunding", function () {
         });
 
       const receipt1 = await tx1.wait(1);
-      const gasCost1 = gasPrice1.mul(receipt1.gasUsed);
-
-      const gasPrice2 = await ethers.provider.getGasPrice();
+      const gasUsed1 = receipt1.gasUsed;
 
       const tx2 = await crowdfunding
         .connect(donator2)
@@ -326,16 +322,14 @@ describe("Crowdfunding", function () {
         });
 
       const receipt2 = await tx2.wait(1);
-      const gasCost2 = gasPrice2.mul(receipt2.gasUsed);
-
-      const gasPrice3 = await ethers.provider.getGasPrice();
+      const gasUsed2 = receipt2.gasUsed;
 
       const tx3 = await crowdfunding
         .connect(campaignOwner)
         .closeCampaign(campaignId);
 
       const receipt3 = await tx3.wait(1);
-      const gasCost3 = gasPrice3.mul(receipt3.gasUsed);
+      const gasUsed3 = receipt3.gasUsed;
 
       const campaign = await crowdfunding.getCampaign(campaignId);
 
@@ -344,10 +338,10 @@ describe("Crowdfunding", function () {
       const finalBalance = await campaignOwner.getBalance();
 
       const expectedBalance = initialBalance
-        .sub(gasCost1)
-        .sub(gasCost2)
-        .sub(gasCost3)
-        .add(donationAmount.mul(2));
+        .add(donationAmount.mul(2))
+        .add(gasUsed1)
+        .add(gasUsed2)
+        .add(gasUsed3);
 
       expect(finalBalance.toString()).to.equal(expectedBalance.toString());
     });
