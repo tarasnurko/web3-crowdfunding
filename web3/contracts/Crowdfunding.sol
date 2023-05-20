@@ -4,6 +4,7 @@ pragma solidity ^0.8.18;
 error IncorrectDeadlineError(uint256 deadline);
 error FillAllFields();
 error NoCampaignFound();
+error CanNotDonateToOwnCampaign();
 error DeadlineNotEnd();
 error TransferError();
 error AccessDenied();
@@ -97,6 +98,10 @@ contract Crowdfunding {
             revert NoCampaignFound(); 
         }
 
+        if (campaign.owner == msg.sender) {
+            revert CanNotDonateToOwnCampaign();
+        }
+
         if (msg.value < MIN_DONATE) {
             revert NotEnoughFunds(); 
         }
@@ -134,7 +139,7 @@ contract Crowdfunding {
                 revert AccessDenied();
             }
 
-            if (campaign.deadline < block.timestamp) {
+            if (campaign.deadline > block.timestamp) {
                 revert DeadlineNotEnd();
             }
         }        
@@ -172,14 +177,11 @@ contract Crowdfunding {
     }
 
     function paginateCampaigns(uint256 _page, uint256 _limit) external view returns (PaginateCampaignsReturns memory) {
-        uint256 page = (_page > 0) ? _page : 1;
-        uint256 limit = (_limit > 0) ? _limit : 3;
-
-        uint256 start = (page - 1) * limit;
-        uint256 end =  start +  limit; 
+        uint256 start = (_page - 1) * _limit;
+        uint256 end =  start +  _limit; 
 
         if (start >= s_campaignCount) {
-        return PaginateCampaignsReturns(page, limit, s_campaignCount, new Campaign[](0));
+        return PaginateCampaignsReturns(_page, _limit, s_campaignCount, new Campaign[](0));
         }
 
         if (end > s_campaignCount) {
@@ -192,20 +194,61 @@ contract Crowdfunding {
             selectedCampaigns[i - start] = campaigns[i];
         }
 
-        return PaginateCampaignsReturns(page, limit, s_campaignCount, selectedCampaigns);
+        return PaginateCampaignsReturns(_page, _limit, s_campaignCount, selectedCampaigns);
     }
 
     function getCampaign(uint256 campaignId) external view returns (Campaign memory) {
         return campaigns[campaignId];
     }
 
+    // function getTopDonators() external view returns (Donation[] memory) {
+    //     Donation[] memory allDonators;
+
+    //     for (uint256 i = 0; i < s_campaignCount; i++) {
+    //         Campaign storage campaign = campaigns[i];
+
+    //         Donation[] memory campaignDonations = campaign.donations;
+
+    //         for (uint256 j = 0; j < campaignDonations.length; j++) {
+    //             Donation memory campaignDonator = campaignDonations[j];
+
+    //             int256 donationIndex = findDonationIndex(allDonators, campaignDonator.donator);
+
+    //             if (donationIndex == -1) {
+    //                 allDonators[allDonators.length] = campaignDonator;
+    //             } else {
+    //                 allDonators[uint256(donationIndex)].donated = campaignDonator.donated;
+    //             }
+    //         }
+    //     }
+
+    //     for (uint256 i = 0; i < allDonators.length - 1; i++) {
+    //         for (uint256 j = i + 1; j < allDonators.length; j++) {
+    //             if (allDonators[j].donated > allDonators[i].donated) {
+
+    //                 Donation memory tempDonator = allDonators[i];
+    //                 allDonators[i] = allDonators[j];
+    //                 allDonators[j] = tempDonator;
+    //             }
+    //         }
+    //     }
+
+    //     uint256 donatorsLength = allDonators.length < 10 ? allDonators.length : 10;
+
+    //     Donation[] memory topDonators = new Donation[](donatorsLength); 
+
+    //     for (uint256 i = 0; i < donatorsLength; i++) {
+    //         topDonators[i] = allDonators[i];
+    //     }
+
+    //     return topDonators;
+    // }
+
     function getTopDonators() external view returns (Donation[] memory) {
         Donation[] memory allDonators;
 
         for (uint256 i = 0; i < s_campaignCount; i++) {
-            Campaign storage campaign = campaigns[i];
-
-            Donation[] memory campaignDonations = campaign.donations;
+            Donation[] memory campaignDonations = campaigns[i].donations;
 
             for (uint256 j = 0; j < campaignDonations.length; j++) {
                 Donation memory campaignDonator = campaignDonations[j];
@@ -213,32 +256,45 @@ contract Crowdfunding {
                 int256 donationIndex = findDonationIndex(allDonators, campaignDonator.donator);
 
                 if (donationIndex == -1) {
-                    allDonators[allDonators.length] = campaignDonator;
+                    allDonators = expandDonatorsArray(allDonators);
+                    donationIndex = int256(allDonators.length) - 1;
+                    allDonators[uint256(donationIndex)] = campaignDonator;
                 } else {
-                    allDonators[uint256(donationIndex)].donated = campaignDonator.donated;
+                    allDonators[uint256(donationIndex)].donated += campaignDonator.donated;
                 }
             }
         }
 
-        for (uint256 i = 0; i < allDonators.length - 1; i++) {
-            for (uint256 j = i + 1; j < allDonators.length; j++) {
-                if (allDonators[j].donated > allDonators[i].donated) {
-
-                    Donation memory tempDonator = allDonators[i];
-                    allDonators[i] = allDonators[j];
-                    allDonators[j] = tempDonator;
-                }
-            }
-        }
+        sortDonators(allDonators);
 
         uint256 donatorsLength = allDonators.length < 10 ? allDonators.length : 10;
 
-        Donation[] memory topDonators = new Donation[](donatorsLength); 
+        Donation[] memory topDonators = new Donation[](donatorsLength);
 
         for (uint256 i = 0; i < donatorsLength; i++) {
             topDonators[i] = allDonators[i];
         }
 
         return topDonators;
+    }
+
+    function expandDonatorsArray(Donation[] memory _donators) private pure returns (Donation[] memory) {
+        Donation[] memory newDonators = new Donation[](_donators.length + 1);
+        for (uint256 i = 0; i < _donators.length; i++) {
+            newDonators[i] = _donators[i];
+        }
+        return newDonators;
+    }
+
+    function sortDonators(Donation[] memory _donators) private pure {
+        for (uint256 i = 0; i < _donators.length - 1; i++) {
+            for (uint256 j = i + 1; j < _donators.length; j++) {
+                if (_donators[j].donated > _donators[i].donated) {
+                    Donation memory tempDonator = _donators[i];
+                    _donators[i] = _donators[j];
+                    _donators[j] = tempDonator;
+                }
+            }
+        }
     }
 }

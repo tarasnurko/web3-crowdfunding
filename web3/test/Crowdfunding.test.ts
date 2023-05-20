@@ -1,14 +1,7 @@
-// import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-// import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
-// import { expect } from "chai";
-// import { ethers } from "hardhat";
-
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Crowdfunding, Crowdfunding__factory } from "../typechain-types";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { expect } from "chai";
-import { Contract, ContractTransaction, Signer } from "ethers";
-import { Provider } from "@ethersproject/providers";
 
 describe("Crowdfunding", function () {
   let crowdfunding: Crowdfunding;
@@ -19,32 +12,19 @@ describe("Crowdfunding", function () {
   const campaignTitle = "Test Campaign";
   const campaignDescription = "Test description";
   const campaignImage =
-    "https://s0.rbk.ru/v6_top_pics/media/img/3/29/755085079290293.jpg";
+    "https://static.wikia.nocookie.net/classikcars/images/f/f8/Top-gear.jpg/revision/latest?cb=20111008175520";
 
-  const getDeadline = (seconds: number) =>
+  const getTimestamp = (seconds: number) =>
     Math.floor(Date.now() / 1000) + seconds;
 
-  const createDefaultCampaign = async (
-    campaignOwner: Signer | Provider,
-    seconds: number
-  ): Promise<ContractTransaction> => {
-    const deadline = getDeadline(seconds);
-
-    return await crowdfunding
-      .connect(campaignOwner)
-      .createCampaign(
-        campaignTitle,
-        campaignDescription,
-        campaignImage,
-        deadline
-      );
+  const getRandomNum = (min: number, max: number) => {
+    return Math.floor(Math.random() * (max - min + 1) + min);
   };
 
   beforeEach(async () => {
-    const allAccounts = await ethers.getSigners();
+    [deployer, ...accounts] = await ethers.getSigners();
 
-    deployer = allAccounts[0];
-    accounts = allAccounts.slice(1);
+    await network.provider.send("hardhat_reset");
 
     crowdfundingContract = await ethers.getContractFactory("Crowdfunding");
     crowdfunding = await crowdfundingContract.deploy();
@@ -89,7 +69,7 @@ describe("Crowdfunding", function () {
     });
 
     it("should revert if the deadline is in the past and title", async () => {
-      const deadline = getDeadline(-100);
+      const deadline = getTimestamp(-100);
 
       await expect(
         crowdfunding.createCampaign(
@@ -102,7 +82,7 @@ describe("Crowdfunding", function () {
     });
 
     it("should revert if title, description or image are empty", async () => {
-      const deadline = getDeadline(100);
+      const deadline = getTimestamp(100);
 
       // Test with empty title
       await expect(
@@ -131,7 +111,7 @@ describe("Crowdfunding", function () {
     });
 
     it("should emit CampaignCreated event", async () => {
-      const deadline = getDeadline(100);
+      const deadline = getTimestamp(100);
 
       await expect(
         crowdfunding.createCampaign(
@@ -146,7 +126,7 @@ describe("Crowdfunding", function () {
 
   describe("donateCampaign", function () {
     it("should add a new donation to the campaign", async () => {
-      const deadline = getDeadline(100);
+      const deadline = getTimestamp(100);
 
       const campaignOwner = accounts[0];
       const donator = accounts[1];
@@ -184,8 +164,41 @@ describe("Crowdfunding", function () {
         .withArgs(donationAmount.toString());
     });
 
+    it("should revert campaign is closed", async () => {
+      const deadline = getTimestamp(100);
+
+      const campaignOwner = accounts[0];
+      const donator = accounts[1];
+
+      const donationAmount = ethers.utils.parseEther("1");
+
+      const campaignId = (await crowdfunding.getNextCampaignId()).toNumber();
+
+      await crowdfunding
+        .connect(campaignOwner)
+        .createCampaign(
+          campaignTitle,
+          campaignDescription,
+          campaignImage,
+          deadline
+        );
+
+      const pastTimestamp = getTimestamp(200);
+
+      await network.provider.send("evm_setNextBlockTimestamp", [pastTimestamp]);
+      await network.provider.send("evm_mine");
+
+      await crowdfunding.connect(campaignOwner).closeCampaign(campaignId);
+
+      await expect(
+        crowdfunding
+          .connect(donator)
+          .donateCampaign(campaignId, { value: donationAmount })
+      ).to.be.revertedWithCustomError(crowdfunding, "CampaignAlreadyClosed");
+    });
+
     it("should revert not enough funds", async () => {
-      const deadline = getDeadline(100);
+      const deadline = getTimestamp(100);
 
       const campaignOwner = accounts[0];
       const donator = accounts[1];
@@ -223,13 +236,39 @@ describe("Crowdfunding", function () {
       ).to.be.revertedWithCustomError(crowdfunding, "NoCampaignFound");
     });
 
+    it("owner can not donate to own campaign", async () => {
+      const deadline = getTimestamp(100);
+
+      const campaignOwner = accounts[0];
+
+      const donationAmount = ethers.utils.parseEther("1");
+
+      const campaignId = (await crowdfunding.getNextCampaignId()).toNumber();
+
+      await crowdfunding
+        .connect(campaignOwner)
+        .createCampaign(
+          campaignTitle,
+          campaignDescription,
+          campaignImage,
+          deadline
+        );
+
+      await expect(
+        crowdfunding
+          .connect(campaignOwner)
+          .donateCampaign(campaignId, { value: donationAmount })
+      ).to.be.revertedWithCustomError(
+        crowdfunding,
+        "CanNotDonateToOwnCampaign"
+      );
+    });
+
     it("should sum donator funds", async () => {
-      const deadline = getDeadline(100);
+      const deadline = getTimestamp(100);
 
       const campaignOwner = accounts[0];
       const donator = accounts[1];
-
-      // const initialBalance = await donator.getBalance();
 
       const campaignId = (await crowdfunding.getNextCampaignId()).toNumber();
 
@@ -245,23 +284,13 @@ describe("Crowdfunding", function () {
       const donationAmount = ethers.utils.parseEther("1");
       const donatedSum = ethers.utils.parseEther("2");
 
-      const tx1 = await crowdfunding
-        .connect(donator)
-        .donateCampaign(campaignId, {
-          value: donationAmount,
-          gasLimit: 1000000,
-        });
+      await crowdfunding.connect(donator).donateCampaign(campaignId, {
+        value: donationAmount,
+      });
 
-      // const receipt1 = await tx1.wait(1);
-
-      const tx2 = await crowdfunding
-        .connect(donator)
-        .donateCampaign(campaignId, {
-          value: donationAmount,
-          gasLimit: 1000000,
-        });
-
-      // const receipt2 = await tx2.wait(1);
+      await crowdfunding.connect(donator).donateCampaign(campaignId, {
+        value: donationAmount,
+      });
 
       const campaign = await crowdfunding.getCampaign(campaignId);
 
@@ -270,15 +299,6 @@ describe("Crowdfunding", function () {
       expect(donations).to.have.lengthOf(1);
       expect(donations[0].donator).to.equal(donator.address);
       expect(donations[0].donated.toString()).to.equal(donatedSum.toString());
-
-      // const finalBalance = await donator.getBalance();
-
-      // const expectedFinalBalance = initialBalance
-      //   .add(donationAmount)
-      //   .add(donationAmount)
-      //   .sub(donatedSum);
-
-      // expect(finalBalance.toString()).to.equal(expectedFinalBalance.toString());
     });
   });
   describe("closeCampaign", function () {
@@ -291,7 +311,7 @@ describe("Crowdfunding", function () {
 
       const donationAmount = ethers.utils.parseEther("1");
 
-      const deadline = getDeadline(100);
+      const deadline = getTimestamp(100);
 
       await crowdfunding
         .connect(campaignOwner)
@@ -312,12 +332,17 @@ describe("Crowdfunding", function () {
         value: donationAmount,
       });
 
+      const pastTimestamp = getTimestamp(200);
+
+      await network.provider.send("evm_setNextBlockTimestamp", [pastTimestamp]);
+      await network.provider.send("evm_mine");
+
       const tx = await crowdfunding
         .connect(campaignOwner)
         .closeCampaign(campaignId);
 
       const receipt = await tx.wait(1);
-      const gasUsed = receipt.gasUsed;
+      const gasUsed = receipt.gasUsed.mul(receipt.effectiveGasPrice);
 
       const campaign = await crowdfunding.getCampaign(campaignId);
 
@@ -330,6 +355,253 @@ describe("Crowdfunding", function () {
         .sub(gasUsed);
 
       expect(finalBalance.toString()).to.equal(expectedBalance.toString());
+    });
+
+    it("should revert if the campaign is already closed", async () => {
+      const campaignOwner = accounts[0];
+      const donator1 = accounts[1];
+      const donator2 = accounts[2];
+
+      const campaignId = (await crowdfunding.getNextCampaignId()).toNumber();
+
+      const donationAmount = ethers.utils.parseEther("1");
+
+      const deadline = getTimestamp(100);
+
+      await crowdfunding
+        .connect(campaignOwner)
+        .createCampaign(
+          campaignTitle,
+          campaignDescription,
+          campaignImage,
+          deadline
+        );
+
+      await crowdfunding.connect(donator1).donateCampaign(campaignId, {
+        value: donationAmount,
+      });
+
+      await crowdfunding.connect(donator2).donateCampaign(campaignId, {
+        value: donationAmount,
+      });
+
+      const pastTimestamp = getTimestamp(200);
+
+      await network.provider.send("evm_setNextBlockTimestamp", [pastTimestamp]);
+      await network.provider.send("evm_mine");
+
+      await crowdfunding.connect(campaignOwner).closeCampaign(campaignId);
+
+      await expect(
+        crowdfunding.connect(campaignOwner).closeCampaign(campaignId)
+      ).to.be.revertedWithCustomError(crowdfunding, `CampaignAlreadyClosed`);
+    });
+
+    it("should revert if a non-owner tries to close the campaign", async () => {
+      const campaignOwner = accounts[0];
+      const notCampaignOwner = accounts[1];
+
+      const campaignId = (await crowdfunding.getNextCampaignId()).toNumber();
+
+      const deadline = getTimestamp(100);
+
+      await crowdfunding
+        .connect(campaignOwner)
+        .createCampaign(
+          campaignTitle,
+          campaignDescription,
+          campaignImage,
+          deadline
+        );
+
+      await expect(
+        crowdfunding.connect(notCampaignOwner).closeCampaign(campaignId)
+      ).to.be.revertedWithCustomError(crowdfunding, `AccessDenied`);
+    });
+
+    it("should revert if close non-existing campaign", async () => {
+      await expect(
+        crowdfunding.connect(accounts[0]).closeCampaign(999)
+      ).to.be.revertedWithCustomError(crowdfunding, `NoCampaignFound`);
+    });
+
+    it("should revert if close not ended campaign", async () => {
+      const campaignOwner = accounts[0];
+
+      const campaignId = (await crowdfunding.getNextCampaignId()).toNumber();
+
+      const deadline = getTimestamp(100);
+
+      await crowdfunding
+        .connect(campaignOwner)
+        .createCampaign(
+          campaignTitle,
+          campaignDescription,
+          campaignImage,
+          deadline
+        );
+
+      await expect(
+        crowdfunding.connect(campaignOwner).closeCampaign(campaignId)
+      ).to.be.revertedWithCustomError(crowdfunding, `DeadlineNotEnd`);
+    });
+
+    it("should revert if sent is false", async () => {
+      const deadline = getTimestamp(100);
+
+      const campaignOwner = accounts[0];
+      const donator = accounts[1];
+
+      const campaignId = (await crowdfunding.getNextCampaignId()).toNumber();
+
+      await crowdfunding
+        .connect(campaignOwner)
+        .createCampaign(
+          campaignTitle,
+          campaignDescription,
+          campaignImage,
+          deadline
+        );
+
+      const donationAmount = ethers.utils.parseEther("1");
+
+      await campaignOwner.sendTransaction({
+        to: await campaignOwner.getAddress(),
+        value: ethers.utils.parseEther("1"),
+      });
+
+      await expect(
+        crowdfunding.connect(campaignOwner).closeCampaign(campaignId)
+      ).to.be.revertedWith("TransferError");
+    });
+  });
+
+  describe("paginateCampaigns", function () {
+    it("should paginate campaigns", async () => {
+      const campaignOwner = accounts[0];
+
+      const deadline = getTimestamp(100);
+
+      for (let i = 0; i < 5; i++) {
+        await crowdfunding
+          .connect(campaignOwner)
+          .createCampaign(
+            campaignTitle,
+            campaignDescription,
+            campaignImage,
+            deadline
+          );
+      }
+
+      const page = 1;
+      const limit = 3;
+
+      const paginatedCampaigns = await crowdfunding.paginateCampaigns(
+        page,
+        limit
+      );
+
+      expect(paginatedCampaigns.page).to.be.equal(page);
+      expect(paginatedCampaigns.limit).to.be.equal(limit);
+      expect(paginatedCampaigns.campaigns.length).to.be.equal(limit);
+    });
+
+    it("should return 0 campaigns", async () => {
+      const page = 999;
+      const limit = 3;
+
+      const paginatedCampaigns = await crowdfunding.paginateCampaigns(
+        page,
+        limit
+      );
+
+      expect(paginatedCampaigns.campaigns.length).to.be.equal(0);
+    });
+
+    it("should return not more than last campaign", async () => {
+      const campaignOwner = accounts[0];
+
+      const deadline = getTimestamp(100);
+
+      for (let i = 0; i < 5; i++) {
+        await crowdfunding
+          .connect(campaignOwner)
+          .createCampaign(
+            campaignTitle,
+            campaignDescription,
+            campaignImage,
+            deadline
+          );
+      }
+
+      const page = 1;
+      const limit = 10;
+
+      const { campaigns } = await crowdfunding.paginateCampaigns(page, limit);
+
+      const lastCampaignId =
+        (await crowdfunding.getNextCampaignId()).toNumber() - 1;
+
+      const lastCampaign = campaigns[campaigns.length - 1];
+
+      expect(lastCampaign.id.toString()).to.be.equal(lastCampaignId.toString());
+    });
+  });
+
+  describe("getTopDonators", function () {
+    it("should return top donators", async () => {
+      let allDonators: Record<string, number> = {};
+
+      const campaignOwner = accounts[0];
+
+      const deadline = getTimestamp(100);
+
+      for (let i = 0; i < 5; i++) {
+        const nextCampaignId = (
+          await crowdfunding.getNextCampaignId()
+        ).toNumber();
+
+        await crowdfunding
+          .connect(campaignOwner)
+          .createCampaign(
+            campaignTitle,
+            campaignDescription,
+            campaignImage,
+            deadline
+          );
+
+        for (let j = 0; j < 5; j++) {
+          const randomNum = getRandomNum(1, 9);
+
+          const donationAmount = ethers.utils.parseEther(`${randomNum}`);
+
+          const randomDonator = accounts[randomNum];
+
+          await crowdfunding
+            .connect(randomDonator)
+            .donateCampaign(nextCampaignId, {
+              value: donationAmount,
+            });
+
+          if (allDonators[randomDonator.address]) {
+            allDonators[randomDonator.address] += randomNum;
+          } else {
+            allDonators[randomDonator.address] = randomNum;
+          }
+        }
+      }
+
+      const topDonators = await crowdfunding.getTopDonators();
+
+      let donatorsArray = Object.entries(allDonators);
+      donatorsArray.sort((a, b) => b[1] - a[1]);
+
+      topDonators.forEach((item, index) => {
+        expect(item.donator).to.be.equal(donatorsArray[index][0]);
+        expect(parseFloat(ethers.utils.formatEther(item.donated))).to.be.equal(
+          donatorsArray[index][1]
+        );
+      });
     });
   });
 });
