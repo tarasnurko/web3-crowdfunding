@@ -157,6 +157,33 @@ contract Crowdfunding {
         return campaign;
     }
 
+    function getMyCampaigns() external view returns (Campaign[] memory) {
+        uint256 myCampaignsCount = 0;
+
+        for (uint256 i = 0; i < s_campaignCount; i++) {
+            Campaign memory campaign = campaigns[i];
+
+            if (campaign.owner == msg.sender) {
+                myCampaignsCount++;
+            }
+        }
+
+        Campaign[] memory myCampaigns = new Campaign[](myCampaignsCount);
+
+        uint256 campaignIndex = 0;
+
+        for (uint256 i = 0; i < myCampaignsCount; i++) {
+            Campaign memory campaign = campaigns[i];
+
+            if (campaign.owner == msg.sender) {
+                myCampaigns[campaignIndex] = campaign;
+                campaignIndex++;
+            }
+        }
+
+        return myCampaigns;
+    }
+
     function getAllCampaigns() external view returns (Campaign[] memory) {
         Campaign[] memory allCampaigns = new Campaign[](s_campaignCount);
 

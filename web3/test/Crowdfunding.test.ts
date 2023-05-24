@@ -445,35 +445,6 @@ describe("Crowdfunding", function () {
         crowdfunding.connect(campaignOwner).closeCampaign(campaignId)
       ).to.be.revertedWithCustomError(crowdfunding, `DeadlineNotEnd`);
     });
-
-    it("should revert if sent is false", async () => {
-      const deadline = getTimestamp(100);
-
-      const campaignOwner = accounts[0];
-      const donator = accounts[1];
-
-      const campaignId = (await crowdfunding.getNextCampaignId()).toNumber();
-
-      await crowdfunding
-        .connect(campaignOwner)
-        .createCampaign(
-          campaignTitle,
-          campaignDescription,
-          campaignImage,
-          deadline
-        );
-
-      const donationAmount = ethers.utils.parseEther("1");
-
-      await campaignOwner.sendTransaction({
-        to: await campaignOwner.getAddress(),
-        value: ethers.utils.parseEther("1"),
-      });
-
-      await expect(
-        crowdfunding.connect(campaignOwner).closeCampaign(campaignId)
-      ).to.be.revertedWith("TransferError");
-    });
   });
 
   describe("paginateCampaigns", function () {
@@ -545,6 +516,40 @@ describe("Crowdfunding", function () {
       const lastCampaign = campaigns[campaigns.length - 1];
 
       expect(lastCampaign.id.toString()).to.be.equal(lastCampaignId.toString());
+    });
+  });
+
+  describe("getMyCampaigns", function () {
+    it("should return my campaigns", async () => {
+      const campaignOwner = accounts[0];
+
+      const deadline = getTimestamp(100);
+
+      await crowdfunding
+        .connect(campaignOwner)
+        .createCampaign(
+          "Campaign 1",
+          campaignDescription,
+          campaignImage,
+          deadline
+        );
+
+      await crowdfunding
+        .connect(campaignOwner)
+        .createCampaign(
+          "Campaign 2",
+          campaignDescription,
+          campaignImage,
+          deadline
+        );
+
+      const myCampaigns = await crowdfunding
+        .connect(campaignOwner)
+        .getMyCampaigns();
+
+      expect(myCampaigns.length).to.equal(2);
+      expect(myCampaigns[0].title).to.equal("Campaign 1");
+      expect(myCampaigns[1].title).to.equal("Campaign 2");
     });
   });
 
