@@ -12,7 +12,7 @@ error NotEnoughFunds();
 error CampaignAlreadyClosed();
 
 contract Crowdfunding {
-    uint256 constant MIN_DONATE = 0.01 ether;
+    uint256 constant MIN_DONATE = 0.00001 ether;
     address immutable public i_owner;
     uint256 private s_campaignCount = 0;
 

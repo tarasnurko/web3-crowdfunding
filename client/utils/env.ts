@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const privateEvnSchema = z.object({
-  moralisApiKey: z.string().nonempty(),
+  MORALIS_API_KEY: z.string().nonempty(),
 });
 
 /**
