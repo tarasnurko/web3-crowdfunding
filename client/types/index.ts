@@ -22,4 +22,10 @@ export interface CreateCampaign {
   deadline: string;
 }
 
-export type PaginatedCampaigns = [string, string, string, Campaign[]];
+// export type PaginatedCampaigns = [string, string, string, Campaign[]];
+export interface PaginatedCampaigns {
+  campaigns: Campaign[];
+  limit: bigint;
+  page: bigint;
+  total: bigint;
+}

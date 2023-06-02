@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@moralisweb3/evm-utils": "^2.22.0",
     "@moralisweb3/next": "^2.21.0",
     "@types/node": "20.2.1",
     "@types/react": "18.2.6",
@@ -21,6 +22,7 @@
     "eslint": "8.41.0",
     "eslint-config-next": "13.4.3",
     "ethers": "^5",
+    "formik": "^2.4.0",
     "moralis": "^2.11.1",
     "next": "13.4.3",
     "next-auth": "^4.22.1",
@@ -32,6 +34,7 @@
     "usehooks-ts": "^2.9.1",
     "viem": "^0.3.37",
     "wagmi": "^1.0.7",
-    "zod": "^3.21.4"
+    "zod": "^3.21.4",
+    "zod-formik-adapter": "^1.2.0"
   }
 }

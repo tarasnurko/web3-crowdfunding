@@ -1,24 +1,42 @@
 import React, { useState } from "react";
 import { useIsClient } from "usehooks-ts";
-import { useEvmRunContractFunction } from "@moralisweb3/next";
-import { abi } from "@/constants";
-import { contractAddress } from "@/constants";
+
+// import { useEvmRunContractFunction } from "@moralisweb3/next";
+import { useContractRead } from "wagmi";
+import { polygonMumbai } from "wagmi/chains";
+
 import { Pagination, Loading, Typography } from "@web3uikit/core";
-import { Campaign, PaginatedCampaigns } from "@/types";
 import CampaignBlock from "./CampaignBlock";
+
+import { ABI, abi, contractAddress } from "@/constants";
+import { Campaign, PaginatedCampaigns } from "@/types";
 
 const AllCampaigns = () => {
   const [page, setPage] = useState<number>(1);
 
-  const { data, isFetching } = useEvmRunContractFunction({
+  const isClient = useIsClient();
+
+  // const { data, isFetching } = useEvmRunContractFunction({
+  //   abi,
+  //   address: contractAddress,
+  //   chain: 80001,
+  //   functionName: "paginateCampaigns",
+  // params: {
+  //   _page: page,
+  //   _limit: 9,
+  // },
+  // });
+
+  const {
+    data: paginatedCampaigns,
+    isLoading,
+    isError,
+  } = useContractRead<ABI, "paginateCampaigns", PaginatedCampaigns>({
     abi,
     address: contractAddress,
-    chain: 80001,
+    chainId: polygonMumbai.id,
     functionName: "paginateCampaigns",
-    params: {
-      _page: page,
-      _limit: 9,
-    },
+    args: [page, 9],
   });
 
   const handlePageChange = (newPage: number) => {
@@ -26,9 +44,9 @@ const AllCampaigns = () => {
   };
 
   const renderData = () => {
-    if (isFetching) {
+    if (!isClient || isLoading) {
       return (
-        <div className="w-full h-[400px] flex justify-center items-center">
+        <div className="w-full grow flex justify-center items-center">
           <Loading
             fontSize={12}
             size={12}
@@ -40,7 +58,25 @@ const AllCampaigns = () => {
       );
     }
 
-    const paginatedCampaigns = data as PaginatedCampaigns | undefined;
+    if (isError) {
+      return (
+        <div className="w-full grow flex justify-center items-center text-center">
+          <Typography variant="subtitle1">
+            Something went wrong, try again please
+          </Typography>
+        </div>
+      );
+    }
+
+    if (!paginatedCampaigns?.campaigns.length) {
+      return (
+        <div className="w-full grow flex justify-center items-center text-center">
+          <Typography variant="subtitle1">No Campaigns Created yet</Typography>
+        </div>
+      );
+    }
+
+    // const paginatedCampaigns = data as PaginatedCampaigns | undefined;
 
     return (
       <div className="w-full min-h-[400px] flex flex-col justify-between items-center gap-10">
@@ -83,7 +119,8 @@ const AllCampaigns = () => {
           currentPage={page}
           onPageChange={handlePageChange}
           pageSize={9}
-          totalCount={parseInt(paginatedCampaigns?.[2] || "0")}
+          // totalCount={parseInt(paginatedCampaigns?.[2] || "0")}
+          totalCount={Number(paginatedCampaigns?.total) || 0}
           siblingCount={1}
         />
       </div>
@@ -91,7 +128,7 @@ const AllCampaigns = () => {
   };
 
   return (
-    <div className="w-full flex justify-center items-center min-h-[400px] px-10">
+    <div className="w-full grow flex justify-center min-h-[400px] px-10">
       {renderData()}
     </div>
   );
