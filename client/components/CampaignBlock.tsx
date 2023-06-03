@@ -10,7 +10,7 @@ import {
 } from "@/utils";
 import { useRouter } from "next/router";
 
-const CampaignBlock = ({
+export const CampaignBlock = ({
   id,
   title,
   description,
@@ -23,7 +23,7 @@ const CampaignBlock = ({
   const router = useRouter();
 
   const handleVisitCampaign = () => {
-    router.push(`/${id}`);
+    router.push(`/${Number(id)}`);
   };
 
   return (
@@ -31,7 +31,7 @@ const CampaignBlock = ({
       <Image
         src={image}
         alt="preview"
-        className="w-full aspect-square rounded-sm"
+        className="w-full aspect-square object-cover rounded-sm"
         width="0"
         height="0"
         sizes="100vw"
@@ -44,10 +44,10 @@ const CampaignBlock = ({
         Description: {sliceDescription(description)}
       </Typography>
       <Typography variant="caption14">
-        Deadline: {formatDeadline(deadline)}
+        Deadline: {formatDeadline(Number(deadline))}
       </Typography>
       <Typography variant="caption14">
-        Collected: {amountCollected} ETH
+        Collected: {Number(amountCollected)} ETH
       </Typography>
       {!closed ? (
         <Button text="Visit" theme="primary" onClick={handleVisitCampaign} />
@@ -57,5 +57,3 @@ const CampaignBlock = ({
     </div>
   );
 };
-
-export default CampaignBlock;

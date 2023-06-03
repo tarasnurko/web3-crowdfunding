@@ -24,6 +24,6 @@ export const sliceDescription = (text: string, maxLength: number = 88) => {
   return text.slice(0, maxLength) + "...";
 };
 
-export const formatDeadline = (timestamp: string) => {
-  dayjs(parseInt(timestamp) * 1000).format("DD-MM-YYYY");
+export const formatDeadline = (timestamp: number) => {
+  return dayjs(timestamp * 1000).format("DD-MM-YYYY");
 };

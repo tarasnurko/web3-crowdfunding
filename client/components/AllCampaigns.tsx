@@ -6,12 +6,13 @@ import { useContractRead } from "wagmi";
 import { polygonMumbai } from "wagmi/chains";
 
 import { Pagination, Loading, Typography } from "@web3uikit/core";
-import CampaignBlock from "./CampaignBlock";
+import { CampaignBlock } from "./CampaignBlock";
 
 import { ABI, abi, contractAddress } from "@/constants";
 import { Campaign, PaginatedCampaigns } from "@/types";
+import { formatDeadline } from "@/utils";
 
-const AllCampaigns = () => {
+export const AllCampaigns = () => {
   const [page, setPage] = useState<number>(1);
 
   const isClient = useIsClient();
@@ -42,6 +43,8 @@ const AllCampaigns = () => {
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
+
+  console.log(paginatedCampaigns);
 
   const renderData = () => {
     if (!isClient || isLoading) {
@@ -81,39 +84,20 @@ const AllCampaigns = () => {
     return (
       <div className="w-full min-h-[400px] flex flex-col justify-between items-center gap-10">
         <div className="grid grid-cols-[repeat(3,280px)] auto-rows-[minmax(340px,max-content)] gap-5 justify-center">
-          <CampaignBlock
-            amountCollected="0.004"
-            closed={false}
-            deadline="45544545"
-            description="sadad dasd asd asd asd sadad dasd asd asd asdsadad dasd asd asd asdsadad dasd asd asd asdsadad dasd asd asd asdsadad dasd asd asd asdsadad dasd asd asd asdsadad dasd asd asd asdsadad dasd asd asd asdsadad dasd asd asd asdsadad dasd asd asd asdsadad dasd asd asd asd"
-            id="asda"
-            image="https://images.pexels.com/photos/16944712/pexels-photo-16944712.jpeg?auto=compress&cs=tinysrgb&w=1600&lazy=load"
-            donations={[{ donated: "ads", donator: "dasas" }]}
-            owner="0xEB7fc18EB6861ba5FF0A53Bb1b26605Ab251926A"
-            title="Title Title Title TitleTitleTitlTitle Title Title e"
-          />
-          <CampaignBlock
-            amountCollected="0.004"
-            closed={false}
-            deadline="45544545"
-            description="sadad dasd asd asd asd "
-            id="asda"
-            image="https://images.pexels.com/photos/16944712/pexels-photo-16944712.jpeg?auto=compress&cs=tinysrgb&w=1600&lazy=load"
-            donations={[{ donated: "ads", donator: "dasas" }]}
-            owner="0xEB7fc18EB6861ba5FF0A53Bb1b26605Ab251926A"
-            title="Title"
-          />
-          <CampaignBlock
-            amountCollected="0.004"
-            closed={false}
-            deadline="45544545"
-            description="sadad dasd asd asd asd "
-            id="asda"
-            image="https://images.pexels.com/photos/16944712/pexels-photo-16944712.jpeg?auto=compress&cs=tinysrgb&w=1600&lazy=load"
-            donations={[{ donated: "ads", donator: "dasas" }]}
-            owner="0xEB7fc18EB6861ba5FF0A53Bb1b26605Ab251926A"
-            title="Title"
-          />
+          {paginatedCampaigns.campaigns.map((campaign) => (
+            <CampaignBlock
+              key={Number(campaign?.id)}
+              id={campaign?.id}
+              title={campaign?.title}
+              description={campaign?.description}
+              deadline={campaign?.deadline}
+              image={campaign?.image || ""}
+              amountCollected={campaign?.amountCollected}
+              closed={campaign?.closed}
+              donations={campaign?.donations || []}
+              owner={campaign?.owner}
+            />
+          ))}
         </div>
         <Pagination
           currentPage={page}
@@ -133,5 +117,3 @@ const AllCampaigns = () => {
     </div>
   );
 };
-
-export default AllCampaigns;

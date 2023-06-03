@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getMinMaxDeadline } from "./date";
 
 export const campaignSchema = z.object({
   title: z
@@ -15,7 +16,16 @@ export const campaignSchema = z.object({
   image: z
     .string({ required_error: "Image url is required field" })
     .nonempty("You must provide image url")
-    .url("Provide correct image url"),
+    .url("Provide correct image url")
+    .refine(
+      (value) => {
+        return /^(http|https):\/\//.test(value);
+      },
+      { message: "Provide correct image url" }
+    ),
 
-  deadline: z.number().nonnegative(),
+  deadline: z
+    .date({ required_error: "Provide deadline" })
+    .min(getMinMaxDeadline().minDate)
+    .max(getMinMaxDeadline().maxDate),
 });

@@ -4,7 +4,7 @@ import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { Button } from "@web3uikit/core";
 import { useIsClient } from "usehooks-ts";
 
-const Header = () => {
+export const Header = () => {
   const isClient = useIsClient();
 
   const { isConnected } = useAccount();
@@ -81,5 +81,3 @@ const Header = () => {
     </div>
   );
 };
-
-export default Header;

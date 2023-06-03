@@ -1,16 +1,16 @@
 export interface Donation {
   donator: string;
-  donated: string;
+  donated: bigint;
 }
 
 export interface Campaign {
-  id: string;
+  id: bigint;
   owner: string;
   title: string;
   description: string;
   image: string;
-  deadline: string;
-  amountCollected: string;
+  deadline: bigint;
+  amountCollected: bigint;
   closed: boolean;
   donations: Donation[];
 }
@@ -19,7 +19,14 @@ export interface CreateCampaign {
   title: string;
   description: string;
   image: string;
-  deadline: string;
+  deadline: number;
+}
+
+export interface CreateCampaignForm {
+  title: string;
+  description: string;
+  image: string;
+  deadline: Date;
 }
 
 // export type PaginatedCampaigns = [string, string, string, Campaign[]];
