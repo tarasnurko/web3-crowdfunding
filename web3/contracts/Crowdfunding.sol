@@ -12,8 +12,8 @@ error NotEnoughFunds();
 error CampaignAlreadyClosed();
 
 contract Crowdfunding {
-    uint256 constant MIN_DONATE = 0.00001 ether;
-    address immutable public i_owner;
+    uint256 public constant MIN_DONATE = 0.00001 ether;
+    address public immutable i_owner;
     uint256 private s_campaignCount = 0;
 
     struct Donation {
@@ -40,7 +40,6 @@ contract Crowdfunding {
     event CampaignCreated(Campaign campaign);
     event CampaignClosed(Campaign campaign);
     event CampaignDonated(uint256 donated);
-    
 
     constructor() {
         i_owner = msg.sender;
@@ -48,14 +47,23 @@ contract Crowdfunding {
 
     function getNextCampaignId() public view returns (uint256) {
         return s_campaignCount;
-    } 
+    }
 
-    function createCampaign(string memory _title, string memory _description, string memory _image, uint256 _deadline) external returns (Campaign memory){
+    function createCampaign(
+        string memory _title,
+        string memory _description,
+        string memory _image,
+        uint256 _deadline
+    ) external returns (Campaign memory) {
         if (_deadline < block.timestamp) {
             revert IncorrectDeadlineError(_deadline);
         }
 
-        if (bytes(_title).length == 0 || bytes(_description).length == 0 || bytes(_image).length == 0) {
+        if (
+            bytes(_title).length == 0 ||
+            bytes(_description).length == 0 ||
+            bytes(_image).length == 0
+        ) {
             revert FillAllFields();
         }
 
@@ -77,7 +85,10 @@ contract Crowdfunding {
         return campaign;
     }
 
-    function findDonationIndex(Donation[] memory donations, address donator) internal pure returns (int256) {
+    function findDonationIndex(
+        Donation[] memory donations,
+        address donator
+    ) internal pure returns (int256) {
         for (uint256 i = 0; i < donations.length; i++) {
             if (donations[i].donator == donator) {
                 return int256(i);
@@ -95,7 +106,7 @@ contract Crowdfunding {
         }
 
         if (campaign.owner == address(0)) {
-            revert NoCampaignFound(); 
+            revert NoCampaignFound();
         }
 
         if (campaign.owner == msg.sender) {
@@ -103,7 +114,7 @@ contract Crowdfunding {
         }
 
         if (msg.value < MIN_DONATE) {
-            revert NotEnoughFunds(); 
+            revert NotEnoughFunds();
         }
 
         campaign.amountCollected += msg.value;
@@ -123,7 +134,9 @@ contract Crowdfunding {
         emit CampaignDonated(msg.value);
     }
 
-    function closeCampaign(uint256 _campaignId) external payable returns (Campaign memory) {
+    function closeCampaign(
+        uint256 _campaignId
+    ) external payable returns (Campaign memory) {
         Campaign storage campaign = campaigns[_campaignId];
 
         if (campaign.closed) {
@@ -132,7 +145,7 @@ contract Crowdfunding {
 
         if (msg.sender != i_owner) {
             if (campaign.owner == address(0)) {
-                revert NoCampaignFound(); 
+                revert NoCampaignFound();
             }
 
             if (msg.sender != campaign.owner) {
@@ -142,12 +155,12 @@ contract Crowdfunding {
             if (campaign.deadline > block.timestamp) {
                 revert DeadlineNotEnd();
             }
-        }        
+        }
 
         bool sent = payable(campaign.owner).send(campaign.amountCollected);
 
         if (!sent) {
-            revert TransferError(); 
+            revert TransferError();
         }
 
         campaign.closed = true;
@@ -190,7 +203,7 @@ contract Crowdfunding {
         for (uint i = 0; i < s_campaignCount; i++) {
             Campaign memory campaign = campaigns[i];
 
-            allCampaigns[i] = campaign; 
+            allCampaigns[i] = campaign;
         }
 
         return allCampaigns;
@@ -203,12 +216,21 @@ contract Crowdfunding {
         Campaign[] campaigns;
     }
 
-    function paginateCampaigns(uint256 _page, uint256 _limit) external view returns (PaginateCampaignsReturns memory) {
+    function paginateCampaigns(
+        uint256 _page,
+        uint256 _limit
+    ) external view returns (PaginateCampaignsReturns memory) {
         uint256 start = (_page - 1) * _limit;
-        uint256 end =  start +  _limit; 
+        uint256 end = start + _limit;
 
         if (start >= s_campaignCount) {
-        return PaginateCampaignsReturns(_page, _limit, s_campaignCount, new Campaign[](0));
+            return
+                PaginateCampaignsReturns(
+                    _page,
+                    _limit,
+                    s_campaignCount,
+                    new Campaign[](0)
+                );
         }
 
         if (end > s_campaignCount) {
@@ -221,10 +243,18 @@ contract Crowdfunding {
             selectedCampaigns[i - start] = campaigns[i];
         }
 
-        return PaginateCampaignsReturns(_page, _limit, s_campaignCount, selectedCampaigns);
+        return
+            PaginateCampaignsReturns(
+                _page,
+                _limit,
+                s_campaignCount,
+                selectedCampaigns
+            );
     }
 
-    function getCampaign(uint256 campaignId) external view returns (Campaign memory) {
+    function getCampaign(
+        uint256 campaignId
+    ) external view returns (Campaign memory) {
         return campaigns[campaignId];
     }
 
@@ -262,7 +292,7 @@ contract Crowdfunding {
 
     //     uint256 donatorsLength = allDonators.length < 10 ? allDonators.length : 10;
 
-    //     Donation[] memory topDonators = new Donation[](donatorsLength); 
+    //     Donation[] memory topDonators = new Donation[](donatorsLength);
 
     //     for (uint256 i = 0; i < donatorsLength; i++) {
     //         topDonators[i] = allDonators[i];
@@ -280,21 +310,31 @@ contract Crowdfunding {
             for (uint256 j = 0; j < campaignDonations.length; j++) {
                 Donation memory campaignDonator = campaignDonations[j];
 
-                int256 donationIndex = findDonationIndex(allDonators, campaignDonator.donator);
+                int256 donationIndex = findDonationIndex(
+                    allDonators,
+                    campaignDonator.donator
+                );
 
                 if (donationIndex == -1) {
                     allDonators = expandDonatorsArray(allDonators);
                     donationIndex = int256(allDonators.length) - 1;
                     allDonators[uint256(donationIndex)] = campaignDonator;
                 } else {
-                    allDonators[uint256(donationIndex)].donated += campaignDonator.donated;
+                    allDonators[uint256(donationIndex)]
+                        .donated += campaignDonator.donated;
                 }
             }
         }
 
+        if (allDonators.length == 0) {
+            return new Donation[](0);
+        }
+
         sortDonators(allDonators);
 
-        uint256 donatorsLength = allDonators.length < 10 ? allDonators.length : 10;
+        uint256 donatorsLength = allDonators.length < 10
+            ? allDonators.length
+            : 10;
 
         Donation[] memory topDonators = new Donation[](donatorsLength);
 
@@ -305,7 +345,9 @@ contract Crowdfunding {
         return topDonators;
     }
 
-    function expandDonatorsArray(Donation[] memory _donators) private pure returns (Donation[] memory) {
+    function expandDonatorsArray(
+        Donation[] memory _donators
+    ) private pure returns (Donation[] memory) {
         Donation[] memory newDonators = new Donation[](_donators.length + 1);
         for (uint256 i = 0; i < _donators.length; i++) {
             newDonators[i] = _donators[i];

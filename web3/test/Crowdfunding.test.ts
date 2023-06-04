@@ -214,11 +214,11 @@ describe("Crowdfunding", function () {
           deadline
         );
 
-      const donationAmount = ethers.utils.parseEther("0.005"); // 0.005 ETH
+      const donationAmount = await crowdfunding.MIN_DONATE();
 
       await expect(
         crowdfunding.connect(donator).donateCampaign(campaignId, {
-          value: donationAmount,
+          value: donationAmount.sub(1),
         })
       ).to.be.revertedWithCustomError(crowdfunding, "NotEnoughFunds");
     });
@@ -554,6 +554,11 @@ describe("Crowdfunding", function () {
   });
 
   describe("getTopDonators", function () {
+    it("should return empty array", async () => {
+      const topDonators = await crowdfunding.getTopDonators();
+
+      expect(topDonators.length).to.equal(0);
+    });
     it("should return top donators", async () => {
       let allDonators: Record<string, number> = {};
 
