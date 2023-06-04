@@ -357,6 +357,19 @@
     "type": "event"
   },
   {
+    "inputs": [],
+    "name": "MIN_DONATE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
