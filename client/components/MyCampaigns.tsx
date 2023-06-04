@@ -1,50 +1,32 @@
-import React, { useState } from "react";
+import React from "react";
+import { useAccount, useContractRead } from "wagmi";
+import { polygonMumbai } from "wagmi/chains";
 import { useIsClient } from "usehooks-ts";
 
-// import { useEvmRunContractFunction } from "@moralisweb3/next";
-import { useContractRead } from "wagmi";
-import { polygonMumbai } from "wagmi/chains";
-
-import { Pagination, Loading, Typography } from "@web3uikit/core";
+import { Loading, Typography } from "@web3uikit/core";
 import { CampaignBlock } from "./CampaignBlock";
 
 import { ABI, abi, contractAddress } from "@/constants";
-import { Campaign, PaginatedCampaigns } from "@/types";
-import { formatDeadline } from "@/utils";
+import { useConnected } from "@/hooks";
+import { Campaign } from "@/types";
 
-export const AllCampaigns = () => {
-  const [page, setPage] = useState<number>(1);
-
+export const MyCampaigns = () => {
+  useConnected();
+  const { isConnected, address } = useAccount();
   const isClient = useIsClient();
 
-  // const { data, isFetching } = useEvmRunContractFunction({
-  //   abi,
-  //   address: contractAddress,
-  //   chain: 80001,
-  //   functionName: "paginateCampaigns",
-  // params: {
-  //   _page: page,
-  //   _limit: 9,
-  // },
-  // });
-
   const {
-    data: paginatedCampaigns,
+    data: campaigns,
     isLoading,
     isError,
-  } = useContractRead<ABI, "paginateCampaigns", PaginatedCampaigns>({
+  } = useContractRead<ABI, "getMyCampaigns", Campaign[]>({
     abi,
     address: contractAddress,
     chainId: polygonMumbai.id,
-    functionName: "paginateCampaigns",
-    args: [page, 9],
+    functionName: "getMyCampaigns",
+    enabled: isConnected,
+    account: address,
   });
-
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-  };
-
-  // console.log(paginatedCampaigns);
 
   const renderData = () => {
     if (!isClient || isLoading) {
@@ -71,20 +53,18 @@ export const AllCampaigns = () => {
       );
     }
 
-    if (!paginatedCampaigns?.campaigns.length) {
+    if (!campaigns?.length) {
       return (
         <div className="w-full grow flex justify-center items-center text-center">
-          <Typography variant="subtitle1">No Campaigns Created yet</Typography>
+          <Typography variant="subtitle1">You have no campaigns</Typography>
         </div>
       );
     }
 
-    // const paginatedCampaigns = data as PaginatedCampaigns | undefined;
-
     return (
       <div className="w-full min-h-[400px] flex flex-col justify-between items-center gap-10">
         <div className="grid grid-cols-[repeat(3,280px)] auto-rows-[minmax(340px,max-content)] gap-5 justify-center">
-          {paginatedCampaigns.campaigns.map((campaign) => (
+          {campaigns?.map((campaign) => (
             <CampaignBlock
               key={Number(campaign?.id)}
               id={campaign?.id}
@@ -99,14 +79,6 @@ export const AllCampaigns = () => {
             />
           ))}
         </div>
-        <Pagination
-          currentPage={page}
-          onPageChange={handlePageChange}
-          pageSize={9}
-          // totalCount={parseInt(paginatedCampaigns?.[2] || "0")}
-          totalCount={Number(paginatedCampaigns?.total) || 0}
-          siblingCount={1}
-        />
       </div>
     );
   };

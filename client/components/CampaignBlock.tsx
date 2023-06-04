@@ -9,6 +9,8 @@ import {
   sliceWalletAddress,
 } from "@/utils";
 import { useRouter } from "next/router";
+import { useAccount } from "wagmi";
+import { useIsClient } from "usehooks-ts";
 
 export const CampaignBlock = ({
   id,
@@ -20,14 +22,23 @@ export const CampaignBlock = ({
   amountCollected,
   closed,
 }: Campaign) => {
+  const isClient = useIsClient();
   const router = useRouter();
+  const { isConnected, address } = useAccount();
 
   const handleVisitCampaign = () => {
     router.push(`/${Number(id)}`);
   };
 
+  const ownCampaignStyles =
+    isClient && isConnected && address === owner ? "bg-teal-50" : "bg-lime-50";
+
+  const campaignClosedStyles = closed && "bg-red-300";
+
   return (
-    <div className="w-full p-3 min-h-full flex flex-col gap-2 bg-teal-50 rounded-lg">
+    <div
+      className={`w-full p-3 min-h-full flex flex-col gap-2 rounded-lg ${ownCampaignStyles} ${campaignClosedStyles}`}
+    >
       <Image
         src={image}
         alt="preview"
@@ -49,11 +60,13 @@ export const CampaignBlock = ({
       <Typography variant="caption14">
         Collected: {Number(amountCollected)} ETH
       </Typography>
-      {!closed ? (
-        <Button text="Visit" theme="primary" onClick={handleVisitCampaign} />
-      ) : (
-        <Button disabled text="Closed" theme="colored" color="red" />
-      )}
+      <div className="mt-auto">
+        {!closed ? (
+          <Button text="Visit" theme="primary" onClick={handleVisitCampaign} />
+        ) : (
+          <Button disabled text="Closed" theme="colored" color="red" />
+        )}
+      </div>
     </div>
   );
 };
