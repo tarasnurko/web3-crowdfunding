@@ -11,6 +11,7 @@ import {
 import { useRouter } from "next/router";
 import { useAccount } from "wagmi";
 import { useIsClient } from "usehooks-ts";
+import { ethers } from "ethers";
 
 export const CampaignBlock = ({
   id,
@@ -27,7 +28,7 @@ export const CampaignBlock = ({
   const { isConnected, address } = useAccount();
 
   const handleVisitCampaign = () => {
-    router.push(`/${Number(id)}`);
+    router.push(`/campaigns/${Number(id)}`);
   };
 
   const ownCampaignStyles =
@@ -58,14 +59,10 @@ export const CampaignBlock = ({
         Deadline: {formatDeadline(Number(deadline))}
       </Typography>
       <Typography variant="caption14">
-        Collected: {Number(amountCollected)} ETH
+        Collected: {ethers.utils.formatEther(amountCollected)} MATIC
       </Typography>
       <div className="mt-auto">
-        {!closed ? (
-          <Button text="Visit" theme="primary" onClick={handleVisitCampaign} />
-        ) : (
-          <Button disabled text="Closed" theme="colored" color="red" />
-        )}
+        <Button text="Visit" theme="primary" onClick={handleVisitCampaign} />
       </div>
     </div>
   );

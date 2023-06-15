@@ -1,23 +1,19 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useIsClient } from "usehooks-ts";
 import { useContractRead } from "wagmi";
 import { polygonMumbai } from "wagmi/chains";
-import Blockies from "react-18-blockies";
 
-import { CopyButton, Loading, Typography } from "@web3uikit/core";
+import { Loading, Typography } from "@web3uikit/core";
 
 import { ABI, abi, contractAddress } from "@/constants";
 import { Donation } from "@/types";
-import { sliceWalletAddress } from "@/utils";
+import { DonationBlock } from "./DonationBlock";
 
 export const TopDonators = () => {
   const isClient = useIsClient();
 
-  // 0xEB7fc18EB6861ba5FF0A53Bb1b26605Ab251926A
-  // 0x39673D50E70826E287e595DA274dD67b038E7400
-
   const {
-    data: donators,
+    data: donations,
     isLoading,
     isError,
   } = useContractRead<ABI, "getTopDonators", Donation[]>({
@@ -27,7 +23,7 @@ export const TopDonators = () => {
     functionName: "getTopDonators",
   });
 
-  console.log(donators);
+  const reversedDonations = useMemo(() => donations?.reverse(), []);
 
   const renderData = () => {
     if (!isClient || isLoading) {
@@ -54,7 +50,7 @@ export const TopDonators = () => {
       );
     }
 
-    if (!donators?.length) {
+    if (!reversedDonations?.length) {
       return (
         <div className="w-full grow flex justify-center items-center text-center">
           <Typography variant="subtitle1">There are no donators yet</Typography>
@@ -64,26 +60,13 @@ export const TopDonators = () => {
 
     return (
       <div className="w-[400px] flex flex-col gap-6">
-        <div className="w-full h-14 px-4 flex justify-between items-center bg-orange-100 rounded-md">
-          <div className="flex items-center gap-2">
-            <Blockies seed={"0xEB7fc18EB6861ba5FF0A53Bb1b26605Ab251926A"} />
-            <Typography variant="caption14">
-              {sliceWalletAddress("0xEB7fc18EB6861ba5FF0A53Bb1b26605Ab251926A")}{" "}
-              <CopyButton text={"0xEB7fc18EB6861ba5FF0A53Bb1b26605Ab251926A"} />
-            </Typography>
-          </div>
-          <Typography>Donated: {24}ETH</Typography>
-        </div>
-        <div className="w-full h-14 px-4 flex justify-between items-center bg-orange-100 rounded-md">
-          <div className="flex items-center gap-2">
-            <Blockies seed={"0xEB7fc18EB6861ba5FF0A53Bb1b26605Ab251926A"} />
-            <Typography variant="caption14">
-              {sliceWalletAddress("0xEB7fc18EB6861ba5FF0A53Bb1b26605Ab251926A")}{" "}
-              <CopyButton text={"0xEB7fc18EB6861ba5FF0A53Bb1b26605Ab251926A"} />
-            </Typography>
-          </div>
-          <Typography>Donated: {24}ETH</Typography>
-        </div>
+        {reversedDonations.map((donation, index) => (
+          <DonationBlock
+            donated={donation.donated}
+            donator={donation.donator}
+            key={index}
+          />
+        ))}
       </div>
     );
   };
